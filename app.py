@@ -1,6 +1,5 @@
 #!/usr/bin/python3
 
-from multiprocessing.connection import Connection
 import os
 import json
 import sqlparse
@@ -8,40 +7,41 @@ import sqlparse
 import pandas as pd
 import numpy as np
 
-import koneksipostgres
-import koneksi_warehouse
+import connection
+import conn_warehouse
 
 if __name__ == '__main__':
-    print(f"[INFO] Service ETL Memulai .....")
-    conn_dwh, engine_dwh  = koneksi_warehouse.conn()
+    print(f"[INFO] Service ETL is Starting .....")
+    conn_dwh, engine_dwh  = conn_warehouse.conn()
     cursor_dwh = conn_dwh.cursor()
 
-    conf = koneksipostgres.config('postgresql')
-    conn, engine = koneksipostgres.psql_conn(conf)
+    conf = connection.config('postgresql')
+    conn, engine = connection.psql_conn(conf)
     cursor = conn.cursor()
-
+############################
     path_query = os.getcwd()+'/query/'
     query = sqlparse.format(
         open(
             path_query+'query.sql','r'
             ).read(), strip_comments=True).strip()
 
-    querydimuser = sqlparse.format(
+    query_dim_users = sqlparse.format(
         open(
-            path_query+'query_dim_users.sql','r'
+            path_query+'dim_users.sql','r'
             ).read(), strip_comments=True).strip()
-
-    queryfactorders = sqlparse.format(
-        open(
-            path_query+'query_fact_orders.sql','r'
-            ).read(), strip_comments=True).strip()
-
-    querydwhdimuser = sqlparse.format(
+    
+    query_dwh_dim_users = sqlparse.format(
         open(
             path_query+'dwh_dim_users.sql','r'
             ).read(), strip_comments=True).strip()
 
-    querydwhfactorders = sqlparse.format(
+    query_fact_orders = sqlparse.format(
+        open(
+            #select dengan join table
+            path_query+'fact_orders.sql','r'
+            ).read(), strip_comments=True).strip()
+            
+    query_dwh_fact_orders = sqlparse.format(
         open(
             path_query+'dwh_fact_orders.sql','r'
             ).read(), strip_comments=True).strip()
@@ -51,24 +51,27 @@ if __name__ == '__main__':
             path_query+'dwh_design.sql','r'
             ).read(), strip_comments=True).strip()
     try:
-        print(f"[INFO] Service ETL Sedang Berjalan .....")
+        print(f"[INFO] Service ETL is Running .....")
         df = pd.read_sql(query, engine)
-        dfusers = pd.read_sql(querydimuser, engine)
-        dffact = pd.read_sql(queryfactorders, engine)
+        df_dim_users = pd.read_sql(query_dim_users, engine)
+        df_fact_orders = pd.read_sql(query_fact_orders, engine)
         
         cursor_dwh.execute(query_dwh)
-        cursor_dwh.execute(querydwhdimuser)
-        cursor_dwh.execute(querydwhfactorders)
+        cursor_dwh.execute(query_dwh_dim_users)
+        cursor_dwh.execute(query_dwh_fact_orders)
         conn_dwh.commit()
 
-        dfusers.to_sql('dim_users', engine_dwh, if_exists='append', index=False)
-        print(f"[INFO] Service ETL dim users sukses .....")
+
+        df_dim_users.to_sql('dim_users', engine_dwh, if_exists='append', index=False)
+        print(f"[INFO] Service ETL dim users is Success .....")
+
         df.to_sql('dim_orders', engine_dwh, if_exists='append', index=False)
-        print(f"[INFO] Service ETL dim orders sukses .....")
-        dffact.to_sql('fact_orders', engine_dwh, if_exists='append', index=False)
-        print(f"[INFO] Service ETL fact orders sukses .....")
+        print(f"[INFO] Service ETL dim orders is Success .....")
+
+        df_fact_orders.to_sql('fact_orders', engine_dwh, if_exists='append', index=False)
+        print(f"[INFO] Service ETL fact orders is Success .....")
     except:
-        print(f"[INFO] Service ETL is Gagal .....")
+        print(f"[INFO] Service ETL is Failed .....")
 
     
 
